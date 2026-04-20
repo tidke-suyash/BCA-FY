@@ -1,0 +1,17 @@
+How to Use
+
+1. Live Session (Daily Tracking)
+Fill in the session metadata (Faculty, Subject, Class, etc.) at the top.
+
+Drag and drop your raw student list (Excel, PDF, or Word).
+
+Mark attendance using the P and A buttons. Use the Auto-Absent button to quickly finish the list.
+
+Export the daily session as an Excel sheet or a clean PDF.
+
+2. Merge Reports (Master & Semester)
+Switch to the Merge Reports tab.
+
+To build a Master Report: Drop in your generated daily Excel files. Click Generate Master PDF.
+
+To build a Semester Report: Drop in your previously generated Master PDFs. Click Generate Semester PDF. The system will scan the Master sheets, crunch the attended/total math, and spit out the final semester ledger.

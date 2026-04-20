@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>Attendance Console Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-base: #f4f7fb;
+            --bg-gradient: linear-gradient(135deg, #f4f7fb 0%, #eef2f6 100%);
+            --glass-bg: rgba(255, 255, 255, 0.95);
+            --glass-border: rgba(0, 0, 0, 0.05);
+            
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --accent-primary: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.25);
+            
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.2);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.2);
+            --pending: #f59e0b;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg-base); 
+            background-image: var(--bg-gradient);
+            color: var(--text-main); 
+            margin: 0; 
+            padding: 0;
+            min-height: 100vh; 
+            overflow-x: hidden;
+            transition: all 0.4s ease-in-out;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,1);
+            transition: all 0.3s ease;
+        }
+
+        .wrapper { 
+            max-width: 1100px; 
+            margin: 40px auto; 
+            padding: 0 20px; 
+        }
+
+        .nav-tabs {
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 30px;
+            background: rgba(255,255,255,0.7); 
+            padding: 8px; 
+            border-radius: 999px;
+            border: 1px solid var(--glass-border); 
+            width: max-content; 
+            margin-left: auto; 
+            margin-right: auto;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+            position: relative;
+            z-index: 10;
+        }
+
+        .tab-btn {
+            background: transparent; 
+            border: none; 
+            color: var(--text-muted);
+            padding: 12px 28px; 
+            border-radius: 999px; 
+            font-weight: 600; 
+            font-size: 0.95em;
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            letter-spacing: 0.5px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active { 
+            background: #ffffff; 
+            color: var(--accent-primary); 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            border: 1px solid var(--glass-border); 
+        }
+
+        .tab-content { 
+            display: none; 
+            opacity: 0; 
+            transform: translateY(15px); 
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out; 
+        }
+
+        .tab-content.active { 
+            display: block; 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+
+        .form-box { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+            gap: 15px; 
+            padding: 25px; 
+            margin-bottom: 25px; 
+        }
+
+        input, select {
+            padding: 16px; 
+            border-radius: 12px; 
+            border: 1px solid #cbd5e1;
+            background: #ffffff; 
+            color: var(--text-main); 
+            outline: none; 
+            transition: all 0.3s ease;
+            font-size: 0.95em; 
+            font-weight: 500;
+            width: 100%;
+        }
+
+        input:focus, select:focus { 
+            border-color: var(--accent-primary); 
+            box-shadow: 0 0 0 4px var(--accent-glow); 
+            background: #ffffff; 
+        }
+
+        .input-error { 
+            border-color: var(--danger) !important; 
+            animation: shake 0.4s ease-in-out; 
+        }
+
+        .upload-zone {
+            padding: 60px 20px; 
+            text-align: center; 
+            cursor: pointer; 
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            margin-bottom: 25px;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            border: 2px dashed #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .upload-zone:hover { 
+            transform: translateY(-4px); 
+            border-color: var(--accent-primary); 
+            background: #ffffff;
+            box-shadow: 0 15px 40px var(--accent-glow); 
+        }
+
+        .upload-icon { 
+            font-size: 3.5em; 
+            margin-bottom: 15px; 
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.3)); 
+        }
+
+        .upload-text { 
+            font-size: 1.15em; 
+            font-weight: 700; 
+            letter-spacing: 0.5px; 
+            color: var(--text-main); 
+        }
+
+        .upload-sub { 
+            font-size: 0.9em; 
+            color: var(--text-muted); 
+            margin-top: 10px; 
+        }
+
+        #fileInput, #weeklyFileInput { 
+            position: absolute; 
+            inset: 0; 
+            opacity: 0; 
+            width: 100%; 
+            height: 100%; 
+            cursor: pointer; 
+            z-index: 5;
+        }
+
+        .toolbar { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 15px; 
+            margin-bottom: 25px; 
+        }
+
+        .search-bar { 
+            flex: 1; 
+            min-width: 250px; 
+            border-radius: 999px; 
+            padding: 14px 25px; 
+            font-size: 1em;
+        }
+
+        .stats-bar {
+            display: flex; 
+            gap: 25px; 
+            font-weight: 700; 
+            font-size: 0.95em;
+            padding: 14px 28px; 
+            border-radius: 999px; 
+            letter-spacing: 0.5px;
+            background: #ffffff;
+        }
+
+        .stat-p { color: var(--success); } 
+        .stat-a { color: var(--danger); } 
+        .stat-u { color: var(--pending); }
+
+        #studentList { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); 
+            gap: 15px; 
+            padding-bottom: 30px;
+        }
+
+        .student-card {
+            padding: 20px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            position: relative; 
+            overflow: hidden; 
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .student-card::before { 
+            content: ''; 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            bottom: 0; 
+            width: 5px; 
+            background: #cbd5e1; 
+            transition: 0.3s ease; 
+        }
+
+        .student-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.06); 
+        }
+
+        .student-card.present::before { 
+            background: var(--success); 
+            box-shadow: 0 0 15px var(--success); 
+        }
+
+        .student-card.absent::before { 
+            background: var(--danger); 
+            box-shadow: 0 0 15px var(--danger); 
+        }
+
+        .student-card.unmarked::before { 
+            background: var(--pending); 
+        }
+
+        .roll-box { 
+            font-weight: 800; 
+            color: var(--text-main); 
+            font-size: 1.15em; 
+            letter-spacing: 1px; 
+            display: block;
+        }
+
+        .name-box { 
+            font-size: 0.9em; 
+            color: var(--text-muted); 
+            margin-top: 6px; 
+            display: block; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            max-width: 170px; 
+            font-weight: 500;
+        }
+
+        .btn-group { 
+            display: flex; 
+            gap: 10px; 
+        }
+        
+        .m-btn {
+            width: 44px; 
+            height: 44px; 
+            border-radius: 12px; 
+            border: 1px solid #e2e8f0;
+            font-weight: 700; 
+            font-size: 1.1em;
+            cursor: pointer; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); 
+            background: #f8fafc; 
+            color: var(--text-muted);
+        }
+
+        .m-btn:hover { 
+            background: #e2e8f0; 
+            color: var(--text-main); 
+        }
+
+        .m-p.active { 
+            background: var(--success); 
+            color: #fff; 
+            border-color: var(--success); 
+            box-shadow: 0 6px 15px var(--success-glow); 
+        }
+
+        .m-a.active { 
+            background: var(--danger); 
+            color: white; 
+            border-color: var(--danger); 
+            box-shadow: 0 6px 15px var(--danger-glow); 
+        }
+
+        .floating-action-bar {
+            position: sticky; 
+            bottom: 25px;
+            display: flex; 
+            gap: 15px; 
+            padding: 15px; 
+            border-radius: 999px;
+            z-index: 100; 
+            width: max-content; 
+            margin: 40px auto 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+            border: 1px solid var(--glass-border);
+            flex-wrap: wrap; 
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 15px 28px; 
+            border-radius: 999px; 
+            border: 1px solid var(--glass-border);
+            font-weight: 700; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 0.85em; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            background: #f8fafc; 
+            color: var(--text-main); 
+        }
+
+        .action-btn:hover { 
+            transform: translateY(-3px); 
+            background: #ffffff; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06); 
+        }
+
+        .export-btn { 
+            background: linear-gradient(135deg, #3b82f6, #2563eb); 
+            color: #fff; 
+            border: none; 
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3); 
+        }
+
+        .export-btn:hover { 
+            background: linear-gradient(135deg, #60a5fa, #3b82f6); 
+            box-shadow: 0 12px 25px rgba(59, 130, 246, 0.4); 
+            color: #fff; 
+        }
+
+        .modal-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.4); 
+            backdrop-filter: blur(5px); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 1000; 
+            opacity: 0;
+            pointer-events: none; 
+            transition: 0.3s ease; 
+        }
+
+        .modal-overlay.active { 
+            opacity: 1; 
+            pointer-events: all; 
+        }
+        
+        .custom-modal { 
+            background: #ffffff; 
+            max-width: 420px; 
+            width: 90%; 
+            padding: 35px; 
+            text-align: center; 
+            transform: scale(0.9); 
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            border-radius: 24px; 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        .modal-overlay.active .custom-modal { 
+            transform: scale(1); 
+        }
+
+        .custom-modal h3 { 
+            margin: 0 0 15px 0; 
+            color: var(--text-main); 
+            font-size: 1.6em; 
+            letter-spacing: 0.5px; 
+        }
+
+        .custom-modal p { 
+            margin: 0 0 30px 0; 
+            font-size: 1em; 
+            color: var(--text-muted); 
+            line-height: 1.6; 
+        }
+        
+        .modal-btn { 
+            padding: 14px 30px; 
+            border-radius: 999px; 
+            border: none; 
+            font-weight: 700; 
+            cursor: pointer; 
+            margin: 0 8px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            font-size: 0.85em; 
+            transition: 0.3s;
+        }
+
+        .btn-cancel { 
+            background: #f1f5f9; 
+            color: var(--text-main); 
+            border: 1px solid #e2e8f0; 
+        }
+
+        .btn-cancel:hover { 
+            background: #e2e8f0; 
+        }
+
+        .btn-confirm { 
+            background: var(--accent-primary); 
+            color: #fff; 
+        }
+
+        .btn-confirm:hover { 
+            background: #2563eb; 
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .install-prompt {
+            position: fixed; 
+            top: 20px; 
+            left: 50%; 
+            transform: translateX(-50%) translateY(-150px);
+            background: #ffffff; 
+            padding: 20px 25px; 
+            border-radius: 16px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            z-index: 9999; 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            opacity: 0; 
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 90%; 
+            max-width: 450px; 
+            border: 1px solid var(--glass-border);
+        }
+        
+        .install-prompt.show { 
+            transform: translateX(-50%) translateY(0); 
+            opacity: 1; 
+        }
+
+        .file-list { 
+            margin-top: 25px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+        }
+
+        .file-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 16px 20px; 
+            background: #ffffff; 
+            border-radius: 14px; 
+            border: 1px solid var(--glass-border);
+            font-size: 0.95em; 
+            transition: 0.2s; 
+            font-weight: 500;
+        }
+
+        .file-item:hover { 
+            background: #f8fafc; 
+            transform: translateX(5px);
+        }
+
+        .status-badge { 
+            background: var(--success); 
+            color: #fff; 
+            padding: 6px 12px; 
+            border-radius: 999px; 
+            font-size: 0.75em; 
+            font-weight: 700; 
+            text-transform: uppercase;
+        }
+
+        .remove-btn { 
+            background: rgba(239, 68, 68, 0.1); 
+            color: var(--danger); 
+            border: 1px solid rgba(239, 68, 68, 0.2); 
+            border-radius: 50%; 
+            width: 32px; 
+            height: 32px; 
+            display: inline-flex; 
+            justify-content: center; 
+            align-items: center; 
+            cursor: pointer; 
+            margin-left: 15px; 
+            transition: 0.2s; 
+            font-size: 14px;
+        }
+
+        .remove-btn:hover { 
+            background: var(--danger); 
+            color: white; 
+        }
+
+        .hidden { display: none !important; }
+
+        @keyframes shake { 
+            0%, 100% {transform: translateX(0);} 
+            25% {transform: translateX(-6px);} 
+            75% {transform: translateX(6px);} 
+        }
+    </style>
+</head>
+<body>
+
+<div class="install-prompt" id="pwaPrompt">
+    <div style="flex: 1;">
+        <h4 style="margin: 0 0 5px 0; color: #1e293b; font-size: 1.1em;">Install App</h4>
+        <p style="margin: 0; font-size: 0.85em; color: #64748b; line-height: 1.4;">Get the fast native experience on your device for offline use.</p>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button id="pwaClose" class="modal-btn btn-cancel" style="padding: 10px 18px;">Later</button>
+        <button id="pwaInstall" class="modal-btn btn-confirm" style="padding: 10px 18px;">Install</button>
+    </div>
+</div>
+
+<div class="wrapper">
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab(event, 'daily')">Live Session</button>
+        <button class="tab-btn" onclick="switchTab(event, 'weekly')">Master Reports</button>
+    </div>
+
+    <div id="tab-daily" class="tab-content active">
+        <div class="glass-panel form-box" id="metaForm">
+            <input type="text" id="fac" placeholder="Faculty Name">
+            <input type="text" id="sub" placeholder="Subject">
+            <input type="text" id="cls" placeholder="Class (e.g. BCA)">
+            <select id="year">
+                <option value="1st_Year">1st Year</option>
+                <option value="2nd_Year">2nd Year</option>
+                <option value="3rd_Year">3rd Year</option>
+                <option value="4th_Year">4th Year</option>
+            </select>
+            <input type="number" id="sem" placeholder="Semester">
+        </div>
+
+        <div class="glass-panel upload-zone">
+            <div class="upload-icon"> 📑 </div>
+            <div class="upload-text">Upload Student List</div>
+            <div class="upload-sub">Drop structured or unstructured .xlsx, .pdf, or .docx here to begin</div>
+            <input type="file" id="fileInput" accept=".xlsx, .xls, .pdf, .docx">
+        </div>
+
+        <div id="mainUI" class="hidden">
+            <div class="toolbar">
+                <input type="text" id="searchInput" class="glass-panel search-bar" placeholder="Search by roll or name...">
+                <div class="glass-panel stats-bar">
+                    <span class="stat-p">P: <span id="statP">0</span></span>
+                    <span class="stat-a">A: <span id="statA">0</span></span>
+                    <span class="stat-u">Pending: <span id="statU">0</span></span>
+                </div>
+            </div>
+            
+            <div id="studentList"></div>
+            
+            <div class="floating-action-bar">
+                <button class="action-btn" id="markRestBtn">Auto-Absent</button>
+                <button class="action-btn export-btn" id="exportExcelBtn">Export Excel</button>
+                <button class="action-btn export-btn" id="exportPdfBtn" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);">Export PDF</button>
+                <button class="action-btn" id="resetBtn" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">Clear Data</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-weekly" class="tab-content">
+        <div class="glass-panel" style="padding: 50px 30px; text-align: center; margin-bottom: 25px;">
+            <h2 style="margin-top: 0; color: var(--accent-primary); font-weight: 800; letter-spacing: 1px; font-size: 1.8em;">ADVANCED REPORT BUILDER</h2>
+            <p style="color: var(--text-muted); font-size: 1.05em; max-width: 650px; margin: 0 auto 40px; line-height: 1.6;">
+                Upload multiple Daily Session registers to build a Monthly Report, or upload Monthly Master registers to build a Semester Aggregation.
+            </p>
+
+            <div class="upload-zone" style="border: 2px dashed #cbd5e1; background: #ffffff;">
+                <div class="upload-icon"> ⚡ </div>
+                <div class="upload-text">Drop Files Here</div>
+                <div class="upload-sub">Select multiple .xlsx or .pdf files at once</div>
+                <input type="file" id="weeklyFileInput" accept=".xlsx, .pdf" multiple>
+            </div>
+
+            <div id="fileListContainer" class="hidden">
+                <div style="text-align: left; margin-bottom: 15px; font-weight: 700; color: var(--text-main); font-size: 1.1em;">Selected Files:</div>
+                <div class="file-list" id="uploadedFilesList"></div>
+                
+                <div style="display: flex; gap: 20px; margin-top: 35px; flex-wrap: wrap;">
+                    <button class="action-btn export-btn" id="generateMonthlyBtn" style="flex: 1; min-width: 250px; font-size: 0.9em; padding: 18px;">
+                        Generate Monthly Master PDF
+                    </button>
+                    <button class="action-btn export-btn" id="generateSemesterBtn" style="flex: 1; min-width: 250px; font-size: 0.9em; padding: 18px; background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);">
+                        Generate Semester PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="warningModal">
+    <div class="custom-modal">
+        <h3 id="modalTitle">Alert</h3>
+        <p id="modalDesc">Message.</p>
+        <div style="display: flex; justify-content: center; gap: 10px;">
+            <button class="modal-btn btn-cancel" id="modalCancel">Cancel</button>
+            <button class="modal-btn btn-confirm" id="modalConfirm">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /**
+     * SERVICE WORKER & PWA INSTALLATION
+     */
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('ServiceWorker registered smoothly.'))
+                .catch(err => console.error('ServiceWorker registration failed: ', err));
+        });
+    }
+
+    let deferredPrompt;
+    const pwaPrompt = document.getElementById('pwaPrompt');
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        setTimeout(() => pwaPrompt.classList.add('show'), 2500);
+    });
+
+    document.getElementById('pwaClose').addEventListener('click', () => {
+        pwaPrompt.classList.remove('show');
+    });
+
+    document.getElementById('pwaInstall').addEventListener('click', async () => {
+        pwaPrompt.classList.remove('show');
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to install prompt: ${outcome}`);
+            deferredPrompt = null;
+        }
+    });
+
+    /**
+     * TAB SWITCHING LOGIC
+     */
+    function switchTab(e, tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        if (e && e.currentTarget) e.currentTarget.classList.add('active');
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+    }
+
+    /**
+     * GLOBAL APP STATE & REFERENCES
+     */
+    let students = [];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    
+    const DOM = {
+        metaForm: document.getElementById('metaForm'),
+        inputs: {
+            fac: document.getElementById('fac'),
+            sub: document.getElementById('sub'),
+            cls: document.getElementById('cls'),
+            year: document.getElementById('year'),
+            sem: document.getElementById('sem')
+        },
+        fileInput: document.getElementById('fileInput'),
+        mainUI: document.getElementById('mainUI'),
+        studentList: document.getElementById('studentList'),
+        searchInput: document.getElementById('searchInput'),
+        stats: { 
+            P: document.getElementById('statP'), 
+            A: document.getElementById('statA'), 
+            U: document.getElementById('statU') 
+        },
+        btns: { 
+            markRest: document.getElementById('markRestBtn'), 
+            exportExcel: document.getElementById('exportExcelBtn'), 
+            exportPdf: document.getElementById('exportPdfBtn'), 
+            reset: document.getElementById('resetBtn') 
+        }
+    };
+
+    /**
+     * INITIALIZATION & LOCAL STORAGE
+     */
+    window.onload = () => {
+        const savedMeta = localStorage.getItem('at_meta_pro');
+        if (savedMeta) {
+            const parsedMeta = JSON.parse(savedMeta);
+            Object.keys(DOM.inputs).forEach(k => { 
+                if(parsedMeta[k]) DOM.inputs[k].value = parsedMeta[k]; 
+            });
+        }
+
+        const savedStudents = localStorage.getItem('at_list_pro');
+        if (savedStudents) {
+            students = JSON.parse(savedStudents);
+            if(students.length > 0) initializeUI();
+        }
+
+        DOM.metaForm.addEventListener('input', saveMeta);
+        Object.values(DOM.inputs).forEach(input => {
+            input.addEventListener('input', () => input.classList.remove('input-error'));
+        });
+    };
+
+    function saveMeta() { 
+        const metaData = Object.keys(DOM.inputs).reduce((acc, k) => {
+            acc[k] = DOM.inputs[k].value;
+            return acc;
+        }, {});
+        localStorage.setItem('at_meta_pro', JSON.stringify(metaData)); 
+    }
+
+    /**
+     * MODAL CONTROLLER
+     */
+    function customConfirm(title, desc, confirmText, callback, hideCancel = false) {
+        const modal = document.getElementById('warningModal');
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalDesc').textContent = desc;
+        document.getElementById('modalConfirm').textContent = confirmText;
+        
+        const cancelBtn = document.getElementById('modalCancel');
+        cancelBtn.style.display = hideCancel ? 'none' : 'inline-block';
+        
+        modal.classList.add('active');
+        
+        const cleanup = () => {
+            modal.classList.remove('active');
+            const newConfirm = document.getElementById('modalConfirm').cloneNode(true);
+            document.getElementById('modalConfirm').replaceWith(newConfirm);
+            const newCancel = cancelBtn.cloneNode(true);
+            cancelBtn.replaceWith(newCancel);
+        };
+
+        document.getElementById('modalCancel').addEventListener('click', cleanup);
+        document.getElementById('modalConfirm').addEventListener('click', () => { 
+            if(callback) callback(); 
+            cleanup(); 
+        });
+    }
+
+    function validateMeta() {
+        const required = ['fac', 'sub', 'cls', 'sem']; 
+        let isValid = true;
+        required.forEach(id => { 
+            if (!DOM.inputs[id].value.trim()) { 
+                DOM.inputs[id].classList.add('input-error'); 
+                isValid = false; 
+            }
+        });
+        if (!isValid) {
+            customConfirm("Missing Information", "Please fill in Faculty, Subject, Class, and Semester details before exporting.", "Understood", null, true);
+        }
+        return isValid;
+    }
+
+    /**
+     * DAILY FILE PARSER (Robust Unstructured Data Extractor)
+     */
+    DOM.fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0]; 
+        if (!file) return;
+        const ext = file.name.split('.').pop().toLowerCase();
+        
+        if (ext === 'xlsx' || ext === 'xls') {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const wb = XLSX.read(evt.target.result, {type: 'array'});
+                const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1});
+                const extracted = [];
+                for(let i = 0; i < raw.length; i++){
+                    const row = raw[i]; 
+                    if(!row || row.length === 0) continue;
+                    let roll = '', name = '';
+                    
+                    for(let j=0; j < row.length; j++){
+                        const cell = String(row[j] || '').trim(); 
+                        if(!cell) continue;
+                        if((/^\d+$/.test(cell) || /\d/.test(cell)) && cell.length < 20 && !name && !roll) {
+                            roll = cell;
+                        } else if(/[a-zA-Z]/.test(cell) && cell.length > 2 && !name) {
+                            name = cell;
+                        }
+                    }
+                    if(!roll && row.length >= 2) { 
+                        roll = String(row[0]).trim(); 
+                        name = String(row[1]).trim(); 
+                    }
+                    if(roll && name && roll.toLowerCase() !== 'roll' && name.toLowerCase() !== 'name') {
+                        extracted.push({roll, name});
+                    }
+                }
+                processRawData(extracted);
+            }; 
+            reader.readAsArrayBuffer(file);
+        } else if (ext === 'pdf') {
+            const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise; 
+            let text = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                text += content.items.map(item => item.str).join(" ") + "\n";
+            }
+            extractFromText(text);
+        } else if (ext === 'docx') {
+            const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+            extractFromText(result.value);
+        }
+        e.target.value = '';
+    });
+
+    function extractFromText(text) {
+        const tokens = text.trim().split(/\s+/); 
+        const extracted = [];
+        let r = null, n = [];
+        for (let t of tokens) {
+            if (/\d/.test(t) && t.length < 15) {
+                if (r && n.length > 0) extracted.push({ roll: r, name: n.join(' ') });
+                r = t; 
+                n = [];
+            } else { 
+                if (r) n.push(t); 
+            }
+        }
+        if (r && n.length > 0) extracted.push({ roll: r, name: n.join(' ') });
+        processRawData(extracted);
+    }
+
+    function processRawData(rawData) {
+        const unique = new Map();
+        rawData.forEach(item => {
+            const r = String(item.roll).trim();
+            const n = String(item.name).trim();
+            if (r && n && r !== "00" && r.toLowerCase() !== "unknown" && !unique.has(r)) {
+                unique.set(r, { roll: r, name: n, status: null });
+            }
+        });
+        if (unique.size === 0) {
+            return customConfirm("Extraction Error", "Could not identify Roll Numbers and Names correctly. Ensure the file contains readable data.", "Okay", null, true);
+        }
+        students = Array.from(unique.values()); 
+        initializeUI();
+    }
+
+    /**
+     * UI RENDERING & STATE MANAGEMENT
+     */
+    function initializeUI() { 
+        DOM.mainUI.classList.remove('hidden'); 
+        renderList(); 
+        updateStats(); 
+        localStorage.setItem('at_list_pro', JSON.stringify(students)); 
+    }
+
+    function renderList(filter = '') {
+        const term = filter.toLowerCase(); 
+        let htmlBuffer = '';
+        
+        for(let i=0; i<students.length; i++) {
+            const s = students[i];
+            if (term && !s.roll.toLowerCase().includes(term) && !s.name.toLowerCase().includes(term)) continue;
+            
+            const stateClass = s.status === 'Present' ? 'present' : (s.status === 'Absent' ? 'absent' : 'unmarked');
+            
+            htmlBuffer += `
+            <div class="student-card ${stateClass}" data-index="${i}">
+                <div>
+                    <span class="roll-box">${s.roll}</span>
+                    <span class="name-box" title="${s.name}">${s.name}</span>
+                </div>
+                <div class="btn-group">
+                    <button class="m-btn m-p ${s.status === 'Present' ? 'active' : ''}">P</button>
+                    <button class="m-btn m-a ${s.status === 'Absent' ? 'active' : ''}">A</button>
+                </div>
+            </div>`;
+        }
+        DOM.studentList.innerHTML = htmlBuffer;
+    }
+
+    DOM.studentList.addEventListener('click', (e) => {
+        const btn = e.target.closest('.m-btn'); 
+        if (!btn) return;
+        
+        const card = btn.closest('.student-card'); 
+        const idx = parseInt(card.dataset.index);
+        const isPresent = btn.classList.contains('m-p');
+        const newStatus = isPresent ? 'Present' : 'Absent';
+        
+        if (students[idx].status !== newStatus) {
+            students[idx].status = newStatus;
+            card.className = `student-card ${newStatus.toLowerCase()}`;
+            card.querySelector('.m-p').classList.toggle('active', isPresent);
+            card.querySelector('.m-a').classList.toggle('active', !isPresent);
+            updateStats(); 
+            localStorage.setItem('at_list_pro', JSON.stringify(students));
+        }
+    });
+
+    DOM.searchInput.addEventListener('input', (e) => renderList(e.target.value));
+
+    function updateStats() {
+        let p = 0, a = 0, u = 0; 
+        for(let i=0; i<students.length; i++){
+            if(students[i].status === 'Present') p++; 
+            else if(students[i].status === 'Absent') a++; 
+            else u++;
+        }
+        DOM.stats.P.innerText = p; 
+        DOM.stats.A.innerText = a; 
+        DOM.stats.U.innerText = u;
+    }
+
+    DOM.btns.markRest.addEventListener('click', () => {
+        let updated = false; 
+        for(let i=0; i<students.length; i++) { 
+            if(!students[i].status) { 
+                students[i].status = 'Absent'; 
+                updated = true; 
+            }
+        }
+        if(updated) { 
+            renderList(DOM.searchInput.value); 
+            updateStats(); 
+            localStorage.setItem('at_list_pro', JSON.stringify(students)); 
+        }
+    });
+
+    DOM.btns.reset.addEventListener('click', () => {
+        customConfirm("Clear Session Data", "Are you sure you want to clear the current student list? This cannot be undone.", "Yes, Clear Data", () => {
+            students = []; 
+            DOM.mainUI.classList.add('hidden'); 
+            localStorage.removeItem('at_list_pro'); 
+            DOM.fileInput.value = '';
+        });
+    });
+
+    /**
+     * DAILY EXPORTS (Excel & Formatting PDF logic)
+     */
+    function triggerExport(type) {
+        if (!validateMeta()) return;
+        const unmarked = students.filter(s => s.status === null).length;
+        if (unmarked > 0) {
+            customConfirm("Pending Students", `There are ${unmarked} unmarked students. Mark them as Absent and export?`, "Mark & Export", () => {
+                students.forEach(s => { if(!s.status) s.status = 'Absent'; });
+                renderList(DOM.searchInput.value); 
+                updateStats(); 
+                localStorage.setItem('at_list_pro', JSON.stringify(students));
+                type === 'excel' ? exportToExcel() : exportToPDF();
+            });
+        } else {
+            type === 'excel' ? exportToExcel() : exportToPDF();
+        }
+    }
+
+    DOM.btns.exportExcel.addEventListener('click', () => triggerExport('excel'));
+    DOM.btns.exportPdf.addEventListener('click', () => triggerExport('pdf'));
+
+    function exportToExcel() {
+        let pCount = 0, aCount = 0;
+        const rows = students.map(s => {
+            if(s.status === 'Present') pCount++; 
+            if(s.status === 'Absent') aCount++;
+            return { "Roll Number": s.roll, "Student Name": s.name, "Status": s.status };
+        });
+        
+        rows.unshift(
+            {"Roll Number": `Faculty: ${DOM.inputs.fac.value}`, "Student Name": `Subject: ${DOM.inputs.sub.value}`, "Status": `Class: ${DOM.inputs.cls.value} | Sem: ${DOM.inputs.sem.value}`},
+            {"Roll Number": "", "Student Name": "", "Status": ""} 
+        );
+        rows.push(
+            {}, 
+            { "Roll Number": "TOTAL SUMMARY", "Student Name": `Present: ${pCount}`, "Status": `Absent: ${aCount}` }
+        );
+        
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 15 }, { wch: 35 }, { wch: 15 }];
+        const wb = XLSX.utils.book_new(); 
+        XLSX.utils.book_append_sheet(wb, ws, "Session Data");
+        XLSX.writeFile(wb, `${DOM.inputs.cls.value}_Attendance_${Date.now()}.xlsx`);
+    }
+
+    function exportToPDF() {
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            return customConfirm("Error", "PDF generator library not loaded. Please refresh the page.", "Okay", null, true);
+        }
+        
+        const { jsPDF } = window.jspdf; 
+        const doc = new jsPDF(); 
+        const clsVal = DOM.inputs.cls.value;
+        
+        doc.setFontSize(18); 
+        doc.setTextColor(30, 41, 59);
+        doc.text(`Daily Attendance Report: ${clsVal}`, 14, 20);
+        
+        doc.setFontSize(11); 
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Faculty: ${DOM.inputs.fac.value} | Subject: ${DOM.inputs.sub.value} | Semester: ${DOM.inputs.sem.value}`, 14, 28);
+        doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 34);
+        
+        let pCount = 0, aCount = 0;
+        const tableData = students.map(s => {
+            if(s.status === 'Present') pCount++; 
+            if(s.status === 'Absent') aCount++;
+            return [s.roll, s.name, s.status];
+        });
+        
+        doc.autoTable({
+            startY: 40, 
+            head: [['Roll Number', 'Student Name', 'Status']], 
+            body: tableData, 
+            theme: 'grid',
+            headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold' },
+            styles: { fontSize: 10, cellPadding: 4 },
+            didParseCell: (data) => {
+                if(data.section === 'body' && data.column.index === 2) {
+                    if(data.cell.text[0] === 'Present') { 
+                        data.cell.styles.textColor = [16, 185, 129]; 
+                        data.cell.styles.fontStyle = 'bold'; 
+                    } else if (data.cell.text[0] === 'Absent') { 
+                        data.cell.styles.textColor = [239, 68, 68]; 
+                        data.cell.styles.fontStyle = 'bold'; 
+                    }
+                }
+            }
+        });
+        
+        doc.setFontSize(12); 
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Total Summary -> Present: ${pCount} | Absent: ${aCount}`, 14, doc.lastAutoTable.finalY + 15);
+        
+        doc.save(`${clsVal}_Daily_Report_${Date.now()}.pdf`);
+    }
+
+    /**
+     * MASTER & SEMESTER REPORT ENGINE
+     */
+    let mergeFiles = [];
+    document.getElementById('weeklyFileInput').addEventListener('change', (e) => {
+        for(let i=0; i<e.target.files.length; i++){
+            mergeFiles.push(e.target.files[i]);
+        }
+        renderMergeFiles(); 
+        e.target.value = '';
+    });
+
+    function renderMergeFiles() {
+        const container = document.getElementById('fileListContainer'); 
+        const list = document.getElementById('uploadedFilesList');
+        if(mergeFiles.length === 0) { 
+            container.classList.add('hidden'); 
+            return; 
+        }
+        container.classList.remove('hidden'); 
+        list.innerHTML = '';
+        mergeFiles.forEach((file, index) => {
+            list.innerHTML += `
+            <div class="file-item">
+                <span>${file.name}</span> 
+                <div>
+                    <span class="status-badge">Ready</span>
+                    <button class="remove-btn" onclick="removeMergeFile(${index})">✕</button>
+                </div>
+            </div>`;
+        });
+    }
+
+    window.removeMergeFile = (index) => { 
+        mergeFiles.splice(index, 1); 
+        renderMergeFiles(); 
+    };
+
+    /**
+     * Deep parsing algorithm for unstructured PDF/Excel Master Extraction
+     */
+    async function extractRecordsFromFile(file) {
+        let text = "";
+        const ext = file.name.split('.').pop().toLowerCase();
+        
+        if (ext === 'xlsx' || ext === 'xls') {
+            const wb = XLSX.read(await file.arrayBuffer(), {type: 'array'});
+            const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1});
+            raw.forEach(row => { text += row.join(" ") + "\n"; });
+        } else if (ext === 'pdf') {
+            const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const content = await (await pdf.getPage(i)).getTextContent();
+                text += content.items.map(item => item.str).join(" ") + " ";
+            }
+        }
+        
+        const records = new Map();
+        const tokens = text.replace(/[\n\r]/g, ' ').split(/\s+/);
+        
+        let lastRoll = null, lastName = [];
+        for (let i=0; i < tokens.length; i++) {
+            const t = tokens[i];
+            const lowerT = t.toLowerCase();
+
+            if (lowerT === 'roll' || lowerT === 'name' || lowerT === 'status' || lowerT === 'present' || lowerT === 'absent' && !lastRoll) continue;
+
+            // Daily Data Identifier
+            if (lowerT === 'present' || t === 'P') {
+                if (lastRoll) { 
+                    records.set(lastRoll, { name: lastName.join(' '), status: 'Present' }); 
+                    lastRoll = null; 
+                    lastName = []; 
+                }
+            } 
+            else if (lowerT === 'absent' || t === 'A') {
+                if (lastRoll) { 
+                    records.set(lastRoll, { name: lastName.join(' '), status: 'Absent' }); 
+                    lastRoll = null; 
+                    lastName = []; 
+                }
+            } 
+            // Semester Fraction Identifier (e.g., 5/6)
+            else if (/^\d+\/\d+$/.test(t)) {
+                if(lastRoll) {
+                    const parts = t.split('/');
+                    records.set(lastRoll, { name: lastName.join(' '), attended: parseInt(parts[0]), total: parseInt(parts[1]) });
+                    lastRoll = null; 
+                    lastName = [];
+                }
+            } 
+            else if (/\d/.test(t) && t.length < 15) {
+                lastRoll = t; 
+                lastName = [];
+            } 
+            else {
+                if (lastRoll) lastName.push(t);
+            }
+        }
+        return records;
+    }
+
+    // 1. GENERATE MONTHLY REPORT (Builds P/A matrix)
+    document.getElementById('generateMonthlyBtn').addEventListener('click', async function() {
+        if(mergeFiles.length === 0) return customConfirm("No Files", "Please upload Daily Session files to merge into a Monthly Master Report.", "Okay", null, true);
+        
+        if (!window.jspdf || !window.jspdf.jsPDF) return customConfirm("Error", "PDF engine is loading. Please try again in a moment.", "Okay", null, true);
+
+        const originalText = this.innerText; 
+        this.innerText = "Analyzing Matrix..."; 
+        this.style.pointerEvents = "none";
+        
+        try {
+            const masterMap = new Map(); 
+            const sessionNames = [];
+            
+            for (let i = 0; i < mergeFiles.length; i++) {
+                sessionNames.push(`Day ${i+1}`);
+                const records = await extractRecordsFromFile(mergeFiles[i]);
+                
+                records.forEach((data, roll) => {
+                    if (!masterMap.has(roll)) masterMap.set(roll, { name: data.name, statuses: new Array(mergeFiles.length).fill('-') });
+                    masterMap.get(roll).statuses[i] = data.status === 'Present' ? 'P' : (data.status === 'Absent' ? 'A' : '-');
+                });
+            }
+            
+            const headCols = ['Roll', 'Name', ...sessionNames, 'Total', '%'];
+            const tableData = Array.from(masterMap.entries()).map(([roll, data]) => {
+                let p = 0, t = 0;
+                data.statuses.forEach(s => { 
+                    if(s !== '-') t++; 
+                    if(s === 'P') p++; 
+                });
+                const pct = t > 0 ? ((p/t)*100).toFixed(0) : 0;
+                return [roll, data.name, ...data.statuses, `${p}/${t}`, `${pct}%`];
+            });
+            
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF('landscape');
+            
+            doc.setFontSize(18); 
+            doc.text("Monthly Master Report Matrix", 14, 20);
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Consolidated from ${mergeFiles.length} files on ${new Date().toLocaleDateString()}`, 14, 28);
+            
+            doc.autoTable({
+                startY: 35, 
+                head: [headCols], 
+                body: tableData, 
+                theme: 'grid',
+                headStyles: { fillColor: [59, 130, 246] },
+                styles: { fontSize: 8, cellPadding: 2 },
+                didParseCell: (data) => {
+                    if(data.section === 'body') {
+                        if (data.column.index > 1 && data.column.index < headCols.length - 2) {
+                            if(data.cell.text[0] === 'P') { data.cell.styles.textColor = [16, 185, 129]; data.cell.styles.fontStyle = 'bold'; }
+                            if(data.cell.text[0] === 'A') { data.cell.styles.textColor = [239, 68, 68]; data.cell.styles.fontStyle = 'bold'; }
+                        }
+                    }
+                }
+            });
+            
+            doc.save(`Monthly_Report_${Date.now()}.pdf`);
+            customConfirm("Success", "Monthly Data Matrix generated securely.", "Okay", null, true);
+        } catch(e) { 
+            console.error(e); 
+            customConfirm("Processing Error", "Failed to parse the uploaded files. Ensure they contain readable attendance data.", "Okay", null, true); 
+        } finally { 
+            this.innerText = originalText; 
+            this.style.pointerEvents = "auto"; 
+        }
+    });
+
+    // 2. GENERATE SEMESTER REPORT (Aggregates fractional totals)
+    document.getElementById('generateSemesterBtn').addEventListener('click', async function() {
+        if(mergeFiles.length === 0) return customConfirm("No Files", "Please upload Monthly Master files to calculate the Semester Report.", "Okay", null, true);
+        
+        if (!window.jspdf || !window.jspdf.jsPDF) return customConfirm("Error", "PDF engine is loading. Please try again in a moment.", "Okay", null, true);
+
+        const originalText = this.innerText; 
+        this.innerText = "Calculating Analytics..."; 
+        this.style.pointerEvents = "none";
+        
+        try {
+            const masterMap = new Map(); 
+            
+            for (let file of mergeFiles) {
+                const records = await extractRecordsFromFile(file);
+                records.forEach((data, roll) => {
+                    if (!masterMap.has(roll)) masterMap.set(roll, { name: data.name, attended: 0, total: 0 });
+                    const st = masterMap.get(roll);
+                    
+                    if (data.status) {
+                        st.total += 1;
+                        if (data.status === 'Present') st.attended += 1;
+                    } 
+                    else if (data.attended !== undefined) {
+                        st.attended += data.attended;
+                        st.total += data.total;
+                    }
+                });
+            }
+            
+            let grandAttended = 0, grandTotal = 0;
+            const tableData = Array.from(masterMap.entries()).map(([roll, data]) => {
+                const percentage = data.total > 0 ? ((data.attended / data.total) * 100).toFixed(0) : 0;
+                grandAttended += data.attended;
+                grandTotal += data.total;
+                return [roll, data.name, `${data.attended} / ${data.total}`, `${percentage}%`];
+            });
+
+            tableData.push(["", "AGGREGATE AVERAGE", `${grandAttended} / ${grandTotal}`, `${grandTotal > 0 ? ((grandAttended/grandTotal)*100).toFixed(1) : 0}%`]);
+            
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18); 
+            doc.text("Semester Attendance Analytics", 14, 20);
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Calculated over ${mergeFiles.length} modules on ${new Date().toLocaleDateString()}`, 14, 28);
+            
+            doc.autoTable({
+                startY: 35, 
+                head: [['Roll Number', 'Student Name', 'Total Attended', 'Overall %']], 
+                body: tableData, 
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129], fontStyle: 'bold' },
+                styles: { fontSize: 10, cellPadding: 4 },
+                didParseCell: (data) => {
+                    if(data.section === 'body') {
+                        if(data.row.index === tableData.length - 1) {
+                            data.cell.styles.fillColor = [241, 245, 249];
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                        if(data.column.index === 3 && data.row.index !== tableData.length - 1) {
+                            const pct = parseInt(data.cell.text[0]);
+                            if(pct < 75) { 
+                                data.cell.styles.textColor = [239, 68, 68]; 
+                                data.cell.styles.fontStyle = 'bold'; 
+                            }
+                        }
+                    }
+                }
+            });
+            
+            doc.save(`Semester_Analytics_${Date.now()}.pdf`);
+            customConfirm("Success", "Semester PDF Analytics generated securely.", "Okay", null, true);
+        } catch(e) { 
+            console.error(e); 
+            customConfirm("Processing Error", "Failed to calculate statistics. Ensure uploaded files have valid fraction data (e.g., 5/6).", "Okay", null, true); 
+        } finally { 
+            this.innerText = originalText; 
+            this.style.pointerEvents = "auto"; 
+        }
+    });
+</script>
+</body>
+</html>
