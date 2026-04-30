@@ -1,4 +1,4 @@
-# Attendance Console Pro
+# Attendance Tracker
 
 A simple but powerful attendance management web app.
 
